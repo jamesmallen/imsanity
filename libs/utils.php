@@ -1,5 +1,5 @@
-<?php 
-/** 
+<?php
+/**
  * ################################################################################
  * UTILITIES
  * ################################################################################
@@ -18,7 +18,7 @@ function imsanity_val($arr,$key,$default='')
 
 /**
  * output a fatal error and optionally die
- * 
+ *
  * @param string $message
  * @param string $title
  * @param bool $die
@@ -29,7 +29,7 @@ function imsanity_fatal($message, $title = "", $die = false)
 		. ($title ? "<h4 style='font-weight: bold; margin: 3px 0px 8px 0px;'>" . $title . "</h4>" : "")
 		. $message
 		. "</div>");
-		
+
 	if ($die) die();
 }
 
@@ -49,14 +49,14 @@ function imsanity_image_resize( $file, $max_w, $max_h, $crop = false, $suffix = 
 	if (function_exists('wp_get_image_editor'))
 	{
 		// WP 3.5 and up use the image editor
-				
+
 		$editor = wp_get_image_editor( $file );
 		if ( is_wp_error( $editor ) )
 			return $editor;
 		$editor->set_quality( $jpeg_quality );
-		
+
 		$ftype = pathinfo($file, PATHINFO_EXTENSION);
-	
+
 		// try to correct for auto-rotation if the info is available
 		if (function_exists('exif_read_data') && ($ftype == 'jpg' || $ftype == 'jpeg') ) {
 			$exif = @exif_read_data($file);
@@ -73,25 +73,25 @@ function imsanity_image_resize( $file, $max_w, $max_h, $crop = false, $suffix = 
 					break;
 			}
 		}
-		
+
 		$resized = $editor->resize( $max_w, $max_h, $crop );
 		if ( is_wp_error( $resized ) )
 			return $resized;
 
 		$dest_file = $editor->generate_filename( $suffix, $dest_path );
-		
+
 		// FIX: make sure that the destination file does not exist.  this fixes
-		// an issue during bulk resize where one of the optimized media filenames may get 
+		// an issue during bulk resize where one of the optimized media filenames may get
 		// used as the temporary file, which causes it to be deleted.
 		while (file_exists($dest_file)) {
 			$dest_file = $editor->generate_filename('TMP', $dest_path );
 		}
-		
+
 		$saved = $editor->save( $dest_file );
-	
+
 		if ( is_wp_error( $saved ) )
 			return $saved;
-	
+
 		return $dest_file;
 	}
 	else

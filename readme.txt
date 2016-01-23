@@ -74,7 +74,7 @@ the Imsanity settings page.  The "Bulk Image Resize" feature allows you to selec
 = 2. Why aren't all of my images detected when I try to use the bulk resize feature? =
 
 Imsanity doesn't search your file system to find large files, instead it looks at the "metadata"
-in the WordPress media library database.  When you upload files, WordPress stores all of the information 
+in the WordPress media library database.  When you upload files, WordPress stores all of the information
 about the image.
 
 = 3. Why am I getting an error saying that my "File is not an image" ? =
@@ -152,6 +152,8 @@ be posted on the support forum at http://wordpress.org/tags/imsanity
 * if png-to-jpg is enabled, replace png transparency with white
 
 == Changelog ==
+
+* Adding JPG quality checks to images
 
 = 2.3.6	 =
 * tested up to WP 4.4

@@ -114,6 +114,7 @@ function imsanity_get_default_multisite_settings()
 	$data->imsanity_bmp_to_jpg = IMSANITY_DEFAULT_BMP_TO_JPG;
 	$data->imsanity_png_to_jpg = IMSANITY_DEFAULT_PNG_TO_JPG;
 	$data->imsanity_quality = IMSANITY_DEFAULT_QUALITY;
+	$data->imsanity_enforce_quality = IMSANITY_DEFAULT_ENFORCE_QUALITY;
 	return $data;
 }
 
@@ -281,6 +282,14 @@ function imsanity_network_settings()
 		</select><?php _e(" (WordPress default is 90)",'imsanity'); ?></td>
 	</tr>
 
+	<tr valign="top">
+	<th scope="row"><?php _e("Enforce JPG Quality",'imsanity'); ?></th>
+	<td><select name="imsanity_enforce_quality">
+		<option value="1" <?php if ($settings->imsanity_enforce_quality == '1') echo "selected='selected'" ?> ><?php _e("Yes",'imsanity'); ?></option>
+		<option value="0" <?php if ($settings->imsanity_enforce_quality == '0') echo "selected='selected'" ?> ><?php _e("No",'imsanity'); ?></option>
+	</select></td>
+	</tr>
+
 	</table>
 
 	<p class="submit"><input type="submit" class="button-primary" value="<?php _e("Update Settings",'imsanity'); ?>" /></p>
@@ -318,6 +327,7 @@ function imsanity_network_settings_update()
 	$data->imsanity_bmp_to_jpg = $_POST['imsanity_bmp_to_jpg'] == 1;
 	$data->imsanity_png_to_jpg = $_POST['imsanity_png_to_jpg'] == 1;
 	$data->imsanity_quality = sanitize_text_field($_POST['imsanity_quality']);
+	$data->imsanity_enforce_quality = $_POST['imsanity_enforce_quality'] == 1;
 
 	$wpdb->update(
 		$table_name,
@@ -410,6 +420,7 @@ function imsanity_register_settings()
 	register_setting( 'imsanity-settings-group', 'imsanity_bmp_to_jpg' );
 	register_setting( 'imsanity-settings-group', 'imsanity_png_to_jpg' );
 	register_setting( 'imsanity-settings-group', 'imsanity_quality' );
+	register_setting( 'imsanity-settings-group', 'imsanity_enforce_quality' );
 }
 
 /**
@@ -456,13 +467,13 @@ function imsanity_settings_banner()
 	// register the scripts that are used by the bulk resizer
 	wp_register_script( 'my_plugin_script', plugins_url('/imsanity/scripts/imsanity.js?v='.IMSANITY_VERSION), array('jquery'));
 	wp_enqueue_script( 'my_plugin_script' );
-	
+
 	echo '
 	<div id="imsanity_header" style="float: left;">';
-	
-	if (!defined('IMSANITY_HIDE_LOGO')) 
+
+	if (!defined('IMSANITY_HIDE_LOGO'))
 		echo '<a href="http://verysimple.com/products/imsanity/"><img alt="Imsanity" src="' . plugins_url() . '/imsanity/images/imsanity.png" style="float: right; margin-left: 15px;"/></a>';
-	
+
 	echo '
 		<h4>'.__("Imsanity automatically resizes insanely huge image uploads",'imsanity').'</h4>'.
 
@@ -528,8 +539,8 @@ function imsanity_settings_page()
 
 	<div style="border: solid 1px #ff6666; background-color: #ffbbbb; padding: 8px;">
 		<h4><?php _e('WARNING: BULK RESIZE WILL ALTER YOUR ORIGINAL IMAGES AND CANNOT BE UNDONE!','imsanity'); ?></h4>
-		
-		<p><?php _e('It is <strong>HIGHLY</strong> recommended that you backup 
+
+		<p><?php _e('It is <strong>HIGHLY</strong> recommended that you backup
 		your wp-content/uploads folder before proceeding.  You will have a chance to preview and select the images to convert.
 		It is also recommended that you initially select only 1 or 2 images and verify that everything is ok before
 		processing your entire library.  You have been warned!','imsanity'); ?></p>
@@ -605,6 +616,14 @@ function imsanity_settings_page_form()
 			}
 			?>
 		</select><?php _e(" (WordPress default is 90)",'imsanity'); ?></td>
+		</tr>
+
+		<tr valign="middle">
+		<th scope="row"><?php _e("Enforce JPG Quality",'imsanity'); ?></th>
+		<td><select name="imsanity_enforce_quality">
+			<option <?php if (get_option('imsanity_enforce_quality',IMSANITY_DEFAULT_ENFORCE_QUALITY) == "1") {echo "selected='selected'";} ?> value="1"><?php _e("Yes",'imsanity'); ?></option>
+			<option <?php if (get_option('imsanity_enforce_quality',IMSANITY_DEFAULT_ENFORCE_QUALITY) == "0") {echo "selected='selected'";} ?> value="0"><?php _e("No",'imsanity'); ?></option>
+		</select></td>
 		</tr>
 
 		<tr valign="middle">

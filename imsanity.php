@@ -3,7 +3,7 @@
 Plugin Name: Imsanity
 Plugin URI: http://verysimple.com/products/imsanity/
 Description: Imsanity stops insanely huge image uploads
-Author: Jason Hinkle
+Author: Jason Hinkle, James M. Allen
 Version: 2.3.6
 Author URI: http://verysimple.com/
 */
@@ -16,6 +16,7 @@ define('IMSANITY_DEFAULT_MAX_HEIGHT',2048);
 define('IMSANITY_DEFAULT_BMP_TO_JPG',1);
 define('IMSANITY_DEFAULT_PNG_TO_JPG',0);
 define('IMSANITY_DEFAULT_QUALITY',90);
+define('IMSANITY_DEFAULT_ENFORCE_QUALITY',0);
 
 define('IMSANITY_SOURCE_POST',1);
 define('IMSANITY_SOURCE_LIBRARY',2);
@@ -41,7 +42,7 @@ include_once(plugin_dir_path(__FILE__).'ajax.php');
 function imsanity_upload_ui()
 {
 	// TODO: output a message on the upload form showing that imanity is enabled
-	// echo '<p class="imsanity-upload-message">' . __("Imsanity plugin is enabled.  Add the text 'noresize' to the filename to bypass.") . '</p>';	
+	// echo '<p class="imsanity-upload-message">' . __("Imsanity plugin is enabled.  Add the text 'noresize' to the filename to bypass.") . '</p>';
 }
 
 
@@ -54,13 +55,13 @@ function imsanity_get_source()
 
 	$id = array_key_exists('post_id', $_REQUEST) ? $_REQUEST['post_id'] : '';
 	$action = array_key_exists('action', $_REQUEST) ? $_REQUEST['action'] : '';
-	
+
 	// a post_id indicates image is attached to a post
-	if ($id > 0) return IMSANITY_SOURCE_POST; 
-	
+	if ($id > 0) return IMSANITY_SOURCE_POST;
+
 	// post_id of 0 is 3.x otherwise use the action parameter
 	if ($id === 0 || $action == 'upload-attachment') return IMSANITY_SOURCE_LIBRARY;
-	
+
 	// we don't know where this one came from but $_REQUEST['_wp_http_referer'] may contain info
 	return IMSANITY_SOURCE_OTHER;
 }
@@ -102,7 +103,7 @@ function imsanity_handle_upload($params)
 {
 	/* debug logging... */
 	// file_put_contents ( "debug.txt" , print_r($params,1) . "\n" );
-	
+
 	// if "noresize" is included in the filename then we will bypass imsanity scaling
 	if (strpos($params['file'],'noresize') !== false) return $params;
 
@@ -110,7 +111,7 @@ function imsanity_handle_upload($params)
 	if ($params['type'] == 'image/bmp' && imsanity_get_option('imsanity_bmp_to_jpg',IMSANITY_DEFAULT_BMP_TO_JPG)) {
 		$params = imsanity_convert_to_jpg('bmp',$params);
 	}
-	
+
 	if ($params['type'] == 'image/png' && imsanity_get_option('imsanity_png_to_jpg',IMSANITY_DEFAULT_PNG_TO_JPG)) {
 		$params = imsanity_convert_to_jpg('png',$params);
 	}
@@ -125,35 +126,42 @@ function imsanity_handle_upload($params)
 // 		$ud = wp_upload_dir();
 // 		$oldPath = $ud['path'] . DIRECTORY_SEPARATOR . $oldPath;
 // 	}
-	
+
 	if ( (!is_wp_error($params)) && file_exists($oldPath) && in_array($params['type'], array('image/png','image/gif','image/jpeg')))
 	{
 
 		// figure out where the upload is coming from
 		$source = imsanity_get_source();
 
+		$quality = imsanity_get_option( 'imsanity_quality', IMSANITY_DEFAULT_QUALITY );
+
 		list($maxW,$maxH) = imsanity_get_max_width_height($source);
 
 		list($oldW, $oldH) = getimagesize( $oldPath );
-		
+
+		$oldFilesize = filesize( $oldPath );
+
+		// estimated image quality algorithm from http://stackoverflow.com/a/19255481
+		$oldQuality = ( 101 - ( ( $oldW * $oldH ) * 3) / $oldFilesize );
+
 		/* HACK: if getimagesize returns an incorrect value (sometimes due to bad EXIF data..?)
 		$img = imagecreatefromjpeg ($oldPath);
 		$oldW = imagesx ($img);
 		$oldH = imagesy ($img);
 		imagedestroy ($img);
 		//*/
-		
+
 		/* HACK: an animated gif may have different frame sizes.  to get the "screen" size
 		$data = ''; // TODO: convert file to binary
-		$header = unpack('@6/vwidth/vheight', $data ); 
+		$header = unpack('@6/vwidth/vheight', $data );
 		$oldW = $header['width'];
-		$oldH = $header['width']; 
+		$oldH = $header['width'];
 		//*/
 
-		if (($oldW > $maxW && $maxW > 0) || ($oldH > $maxH && $maxH > 0))
+		if ( ( $oldW > $maxW && $maxW > 0 ) ||
+				( $oldH > $maxH && $maxH > 0 ) ||
+				( $params['type'] == 'image/jpeg' && imsanity_get_option( 'imsanity_enforce_quality', IMSANITY_DEFAULT_ENFORCE_QUALITY ) && $oldQuality > $quality ) )
 		{
-			$quality = imsanity_get_option('imsanity_quality',IMSANITY_DEFAULT_QUALITY);
-
 			list($newW, $newH) = wp_constrain_dimensions($oldW, $oldH, $maxW, $maxH);
 
 			// this is wordpress prior to 3.5 (image_resize deprecated as of 3.5)
@@ -165,7 +173,7 @@ function imsanity_handle_upload($params)
 			if (!is_wp_error($resizeResult))
 			{
 				$newPath = $resizeResult;
-				
+
 				if (filesize($newPath) <  filesize($oldPath)) {
 					// we saved some file space. remove original and replace with resized image
 					unlink($oldPath);
@@ -180,10 +188,10 @@ function imsanity_handle_upload($params)
 			else
 			{
 				// resize didn't work, likely because the image processing libraries are missing
-				
+
 				// remove the old image so we don't leave orphan files hanging around
 				unlink($oldPath);
-				
+
 				$params = wp_handle_upload_error( $oldPath ,
 					sprintf( __("Oh Snap! Imsanity was unable to resize this image "
 					. "for the following reason: '%s'
@@ -213,13 +221,13 @@ function imsanity_convert_to_jpg($type,$params)
 {
 
 	$img = null;
-	
+
 	if ($type == 'bmp') {
 		include_once('libs/imagecreatefrombmp.php');
 		$img = imagecreatefrombmp($params['file']);
 	}
 	elseif ($type == 'png') {
-		
+
 		if(!function_exists('imagecreatefrompng')) {
 			return wp_handle_upload_error( $params['file'],'imsanity_convert_to_jpg requires gd library enabled');
 		}
@@ -241,14 +249,14 @@ function imsanity_convert_to_jpg($type,$params)
 	$oldFileName = basename($params['file']);
 	$newFileName = basename(str_ireplace(".".$type, ".jpg", $oldFileName));
 	$newFileName = wp_unique_filename( $uploads['path'], $newFileName );
-	
+
 	$quality = imsanity_get_option('imsanity_quality',IMSANITY_DEFAULT_QUALITY);
-	
+
 	if (imagejpeg($img,$uploads['path'] . '/' . $newFileName, $quality))
 	{
 		// conversion succeeded.  remove the original bmp & remap the params
 		unlink($params['file']);
-	
+
 		$params['file'] = $uploads['path'] . '/' . $newFileName;
 		$params['url'] = $uploads['url'] . '/' . $newFileName;
 		$params['type'] = 'image/jpeg';
@@ -256,13 +264,13 @@ function imsanity_convert_to_jpg($type,$params)
 	else
 	{
 		unlink($params['file']);
-	
+
 		return wp_handle_upload_error( $oldPath,
 				__("Oh Snap! Imsanity was Unable to process the $type file.  "
 						."If you continue to see this error you may need to disable the $type-To-JPG "
 						."feature in Imsanity settings.", 'imsanity' ) );
 	}
-	
+
 	return $params;
 }
 
